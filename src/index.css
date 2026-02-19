@@ -1,0 +1,270 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* City Marketplace Design System - Dark Theme, Modern, Production-Ready */
+
+@layer base {
+  /* Light theme */
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 240 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+    --primary: 217 91% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 240 10% 20%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 24 95% 53%;
+    --accent-foreground: 0 0% 100%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 91% 55%;
+    --radius: 0.75rem;
+    --marketplace-gradient: linear-gradient(135deg, hsl(217 91% 55%) 0%, hsl(240 91% 65%) 100%);
+    --card-shadow: 0 1px 3px hsl(0 0% 0% / 0.05), 0 1px 2px hsl(0 0% 0% / 0.1);
+    --card-shadow-hover: 0 4px 12px hsl(0 0% 0% / 0.1), 0 2px 4px hsl(0 0% 0% / 0.06);
+    --overlay: 240 10% 10% / 0.5;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 10% 20%;
+    --sidebar-primary: 217 91% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 240 10% 20%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 55%;
+  }
+
+  /* Dark theme */
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Primary - Bright Blue */
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 6%;
+
+    /* Secondary - Slate */
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 90%;
+
+    --muted: 217 33% 14%;
+    --muted-foreground: 215 20% 55%;
+
+    /* Accent - Vibrant Orange */
+    --accent: 24 95% 53%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Success - Bright Green */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning - Amber */
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 10%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 217 33% 18%;
+    --input: 217 33% 18%;
+    --ring: 217 91% 60%;
+
+    --marketplace-gradient: linear-gradient(135deg, hsl(217 91% 55%) 0%, hsl(260 91% 60%) 100%);
+    --card-shadow: 0 1px 3px hsl(0 0% 0% / 0.3), 0 1px 2px hsl(0 0% 0% / 0.2);
+    --card-shadow-hover: 0 8px 24px hsl(0 0% 0% / 0.3), 0 4px 8px hsl(0 0% 0% / 0.2);
+
+    --sidebar-background: 222 47% 8%;
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 222 47% 6%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 90%;
+    --sidebar-border: 217 33% 18%;
+    --sidebar-ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/40;
+  }
+}
+
+@layer components {
+  /* Marketplace card styles */
+  .marketplace-card {
+    @apply bg-card rounded-xl overflow-hidden transition-all duration-200 border border-border;
+    box-shadow: var(--card-shadow);
+  }
+
+  .marketplace-card:hover {
+    box-shadow: var(--card-shadow-hover);
+    @apply border-border;
+  }
+
+  /* Gradient header */
+  .marketplace-header {
+    background: var(--marketplace-gradient);
+  }
+
+  /* Skeleton loading animation */
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted) / 0.5) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite ease-in-out;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Price tag style */
+  .price-tag {
+    @apply font-bold text-foreground;
+  }
+
+  /* Verified badge */
+  .verified-badge {
+    @apply inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-success text-success-foreground;
+  }
+
+  /* Category pill */
+  .category-pill {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground font-medium text-xs transition-all hover:bg-primary hover:text-primary-foreground hover:shadow-md;
+  }
+
+  /* Chat bubble styles */
+  .chat-bubble-sent {
+    @apply bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-sm;
+  }
+
+  .chat-bubble-received {
+    @apply bg-secondary text-secondary-foreground rounded-2xl rounded-bl-sm px-3 py-2 text-sm;
+  }
+
+  /* Bottom nav active indicator */
+  .nav-active {
+    @apply text-primary relative;
+  }
+
+  .nav-active::after {
+    content: '';
+    @apply absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary;
+  }
+
+  /* Floating action button */
+  .fab {
+    @apply fixed bottom-20 right-4 z-50 w-12 h-12 rounded-full bg-accent text-accent-foreground shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95;
+    box-shadow: 0 4px 14px hsl(var(--accent) / 0.4);
+  }
+
+  /* Input focus ring */
+  .input-marketplace {
+    @apply bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all;
+  }
+
+  /* Rating stars */
+  .star-filled {
+    @apply text-warning fill-current;
+  }
+
+  .star-empty {
+    @apply text-muted-foreground/30;
+  }
+
+  /* Compact listing card */
+  .listing-card-compact {
+    @apply bg-card rounded-xl overflow-hidden border border-border transition-all duration-200;
+    box-shadow: var(--card-shadow);
+  }
+
+  .listing-card-compact:hover {
+    box-shadow: var(--card-shadow-hover);
+    @apply border-primary/30 -translate-y-0.5;
+  }
+}
+
+@layer utilities {
+  /* Safe area for mobile */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 12px);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  /* Hide scrollbar utility */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: var(--marketplace-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Fade in animation */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
