@@ -66,7 +66,7 @@ export interface Category {
 // Current user (mocked as logged in)
 export const currentUser: Seller = {
   id: 'user-1',
-  name: 'goyel vora',
+  name: 'coplspury',
   avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
   city: 'Ahmedabad',
   rating: 4.8,

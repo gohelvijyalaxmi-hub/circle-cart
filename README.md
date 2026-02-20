@@ -506,4 +506,4 @@ MIT License - feel free to use this template for your own projects!
 
 ---
 
-Built with ❤️ using the My Mart frontend toolkit
+Built with ❤️ using the cuircle-mart frontend toolkit

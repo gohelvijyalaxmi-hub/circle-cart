@@ -46,7 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [detectedCity, setDetectedCity] = useState(
     localStorage.getItem('detectedCity') || 'Location not detected'
   );
-  const hostUsernames = new Set(['goyel vora', 'admin', 'host', 'projecthost']);
+  const hostUsernames = new Set(['coplspury', 'admin', 'host', 'projecthost']);
 
   const setIsLoggedIn = (value: boolean) => {
     setIsLoggedInState(value);

@@ -72,8 +72,8 @@ export default function Home() {
       <header className="sticky top-0 z-40 bg-card border-b border-border safe-top">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Logo showName className="shrink-0" size={36} />
+            <div className="flex items-center gap-3">
+              <Logo showName className="shrink-0" size={56} />
               <div className="flex items-center gap-1 text-primary text-xs font-medium">
                 <MapPin className="w-3 h-3" />
                 <span>{detectedCity}</span>
@@ -173,6 +173,7 @@ export default function Home() {
           </div>
         </div>
       </header>
+      
 
       {/* Categories scroll */}
       <section className="px-4 py-3 border-b border-border/50">
