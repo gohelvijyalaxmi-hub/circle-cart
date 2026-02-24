@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, Store, ShieldCheck, Sparkles, Zap, CheckCircle2, Megaphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useApp } from '@/context/AppContext';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/layout/Logo';
+import { requestOtp, verifyOtp } from '@/lib/otp';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -15,24 +16,26 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [contact, setContact] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
-  const [sentCode, setSentCode] = useState('');
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [verificationError, setVerificationError] = useState('');
   const [expiresAt, setExpiresAt] = useState<number>(0);
   const [resendAt, setResendAt] = useState<number>(0);
   const [attemptsLeft, setAttemptsLeft] = useState<number>(5);
+  const [devCode, setDevCode] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [lastSentFor, setLastSentFor] = useState('');
   const [mode, setMode] = useState<'login' | 'signup'>('login');
 
   const secondsToResend = Math.max(0, Math.ceil((resendAt - Date.now()) / 1000));
   const secondsToExpire = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
 
-  const generateSecureCode = () => {
-    const buffer = new Uint32Array(1);
-    crypto.getRandomValues(buffer);
-    // 6 digits, uniform enough for client use
-    return String((buffer[0] % 900000) + 100000);
+  const isValidContact = (value: string) => {
+    const phoneRegex = /^\+?\d{8,15}$/;
+    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+    return phoneRegex.test(value) || emailRegex.test(value);
   };
+  const isValidUsername = (value: string) => /^\S+$/.test(value.trim());
 
   const maskContact = useMemo(() => {
     const value = contact.trim();
@@ -46,7 +49,7 @@ export default function Login() {
     return value.length > 4 ? `${value.slice(0, 2)}******${value.slice(-2)}` : 'your number';
   }, [contact]);
 
-  const handleSendCode = () => {
+  const handleSendCode = async () => {
     const contactValue = contact.trim();
     if (!contactValue) {
       toast({
@@ -57,26 +60,66 @@ export default function Login() {
       return;
     }
 
+    if (!isValidContact(contactValue)) {
+      toast({
+        title: 'Invalid contact',
+        description: 'Enter a valid phone (with country code) or email.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (resendAt && Date.now() < resendAt) {
       return;
     }
 
-    const code = generateSecureCode();
     const now = Date.now();
-    setSentCode(code);
-    setIsCodeSent(true);
-    setIsVerified(false);
-    setVerificationCode('');
-    setVerificationError('');
-    setExpiresAt(now + 5 * 60 * 1000); // 5 minutes
-    setResendAt(now + 30 * 1000); // 30s cooldown
-    setAttemptsLeft(5);
+    setIsSending(true);
+    try {
+      const res = await fetch('/api/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contact: contactValue }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Send failed');
 
-    toast({
-      title: 'Code sent',
-      description: `If ${maskContact || 'your contact'} exists, you'll receive a code. It expires in 5 minutes.`,
-    });
+      setIsCodeSent(true);
+      setIsVerified(false);
+      setVerificationCode(data.devCode ?? '');
+      setDevCode(data.devCode ?? '');
+      setVerificationError('');
+      setExpiresAt(now + 5 * 60 * 1000); // 5 minutes
+      setResendAt(now + 30 * 1000); // 30s cooldown
+      setAttemptsLeft(5);
+
+      toast({
+        title: 'Code sent',
+        description: data.devCode
+          ? `Dev code: ${data.devCode} (visible because DEV_OTP_ECHO is on)`
+          : `If ${maskContact || 'your contact'} exists, you'll receive a code. It expires in 5 minutes.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Send failed',
+        description: err?.message || 'Could not send the verification code.',
+        variant: 'destructive',
+      });
+      setIsCodeSent(false);
+    } finally {
+      setIsSending(false);
+    }
   };
+
+  useEffect(() => {
+    const trimmed = contact.trim();
+    if (!trimmed) return;
+    if (!isValidContact(trimmed)) return;
+    if (resendAt && Date.now() < resendAt) return;
+    if (lastSentFor === trimmed && isCodeSent) return;
+    handleSendCode();
+    setLastSentFor(trimmed);
+  }, [contact]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,14 +133,47 @@ export default function Login() {
       return;
     }
 
+    if (!isValidUsername(username)) {
+      toast({
+        title: 'Invalid username',
+        description: 'Username is required and cannot contain spaces.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!isValidUsername(username)) {
+      toast({
+        title: 'Invalid username',
+        description: 'Username is required and cannot contain spaces.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!isVerified) {
       const enteredCode = verificationCode.trim();
-      if (isCodeSent && enteredCode && enteredCode !== sentCode) {
-        toast({
-          title: 'Invalid verification code',
-          description: 'The code you entered is incorrect. Please try again.',
-          variant: 'destructive',
-        });
+      if (isCodeSent && enteredCode && enteredCode.length === 6) {
+        verifyOtp({ contact: contact.trim(), code: enteredCode })
+          .then(() => {
+            setIsVerified(true);
+            setVerificationError('');
+            toast({
+              title: 'Verification complete',
+              description: 'Code matched. You can now login.',
+            });
+          })
+          .catch((err) => {
+            const nextAttempts = attemptsLeft - 1;
+            setAttemptsLeft(nextAttempts);
+            const message =
+              nextAttempts <= 0
+                ? 'Too many attempts. Please request a new code.'
+                : err?.message || 'Incorrect code. Please try again.';
+            setVerificationError(message);
+            setIsVerified(false);
+            if (nextAttempts <= 0) setIsCodeSent(false);
+          });
         return;
       }
 
@@ -173,44 +249,55 @@ export default function Login() {
                 id="username"
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Your name or handle"
+                onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ''))}
+                placeholder="Your username (no spaces)"
                 className="mt-1.5 input-marketplace"
               />
             </div>
             <div>
               <Label htmlFor="contact">Mobile Number or Email</Label>
-              <div className="mt-1.5 flex gap-2">
+              <div className="flex gap-2 mt-1">
                 <Input
                   id="contact"
                   type="text"
                   value={contact}
-                onChange={(e) => {
-                  setContact(e.target.value);
-                  if (isCodeSent || isVerified) {
-                    setIsCodeSent(false);
-                    setIsVerified(false);
-                    setSentCode('');
-                    setVerificationCode('');
-                    setVerificationError('');
-                    setExpiresAt(0);
-                    setResendAt(0);
-                    setAttemptsLeft(5);
-                  }
-                }}
-                placeholder="+91XXXXXXXXXX or you@example.com"
-                className="input-marketplace"
+                  onChange={(e) => {
+                    setContact(e.target.value);
+                    if (isCodeSent || isVerified) {
+                      setIsCodeSent(false);
+                      setIsVerified(false);
+                      setVerificationCode('');
+                      setVerificationError('');
+                      setExpiresAt(0);
+                      setResendAt(0);
+                      setAttemptsLeft(5);
+                      setDevCode('');
+                    }
+                  }}
+                  placeholder="+91XXXXXXXXXX or you@example.com"
+                  className="input-marketplace"
                 />
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleSendCode}
-                  className="whitespace-nowrap"
-                  disabled={secondsToResend > 0}
+                  disabled={
+                    isSending ||
+                    !isValidContact(contact.trim()) ||
+                    (resendAt && Date.now() < resendAt)
+                  }
+                  className="shrink-0"
                 >
-                  {secondsToResend > 0 ? `Wait ${secondsToResend}s` : isCodeSent ? 'Resend Code' : 'Get Code'}
+                  {isSending
+                    ? 'Sending...'
+                    : resendAt && Date.now() < resendAt
+                      ? `Retry in ${secondsToResend}s`
+                      : 'Get OTP'}
                 </Button>
               </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Codes expire in 5 minutes. Cooldown: {secondsToResend}s
+              </p>
             </div>
 
             <div className="rounded-xl border border-border p-3 bg-muted/30">
@@ -246,30 +333,29 @@ export default function Login() {
                     return;
                   }
 
-                  if (enteredCode === sentCode) {
-                    const wasVerified = isVerified;
-                    setIsVerified(true);
-                    setVerificationError('');
-                    if (!wasVerified) {
-                      toast({
-                        title: 'Verification complete',
-                        description: 'Code matched. You can now login.',
+                  if (enteredCode.length === 6) {
+                    verifyOtp({ contact: contact.trim(), code: enteredCode })
+                      .then(() => {
+                        setIsVerified(true);
+                        setVerificationError('');
+                        toast({
+                          title: 'Verification complete',
+                          description: 'Code matched. You can now login.',
+                        });
+                      })
+                      .catch((err) => {
+                        const nextAttempts = attemptsLeft - 1;
+                        setAttemptsLeft(nextAttempts);
+                        const message =
+                          nextAttempts <= 0
+                            ? 'Too many attempts. Please request a new code.'
+                            : err?.message || 'Incorrect code. Please try again.';
+                        setVerificationError(message);
+                        setIsVerified(false);
+                        if (nextAttempts <= 0) setIsCodeSent(false);
                       });
-                    }
-                    return;
-                  }
-
-                  setIsVerified(false);
-                  if (sentCode && enteredCode.length >= sentCode.length) {
-                    const nextAttempts = attemptsLeft - 1;
-                    setAttemptsLeft(nextAttempts);
-                    if (nextAttempts <= 0) {
-                      setVerificationError('Too many attempts. Please request a new code.');
-                      setIsCodeSent(false);
-                      return;
-                    }
-                    setVerificationError(`Incorrect code. ${nextAttempts} attempt${nextAttempts === 1 ? '' : 's'} left.`);
                   } else {
+                    setIsVerified(false);
                     setVerificationError('');
                   }
                 }}
@@ -283,6 +369,11 @@ export default function Login() {
               {isCodeSent && !verificationError && attemptsLeft < 5 && (
                 <p className="text-[11px] text-muted-foreground mt-1">
                   {attemptsLeft} attempt{attemptsLeft === 1 ? '' : 's'} remaining before you must request a new code.
+                </p>
+              )}
+              {devCode && (
+                <p className="text-[11px] text-muted-foreground mt-2 text-center">
+                  Dev OTP: {devCode} (visible because DEV_OTP_ECHO is enabled; remove for production)
                 </p>
               )}
             </div>

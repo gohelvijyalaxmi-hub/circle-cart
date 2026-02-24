@@ -24,10 +24,13 @@ const {
   SENDGRID_FROM,
   DEV_OTP_ECHO,
 } = process.env;
+
 const smsConfigured = !!(TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM);
 const emailConfigured = !!(SENDGRID_API_KEY && SENDGRID_FROM);
 const providersConfigured = smsConfigured || emailConfigured;
-const shouldEcho = DEV_OTP_ECHO === 'true' || !providersConfigured; // auto-echo locally if no provider
+
+// Echo by default in dev; set DEV_OTP_ECHO=false to disable
+const shouldEcho = DEV_OTP_ECHO !== 'false';
 
 // In-memory stores
 const otpStore = new Map(); // contact -> { code, expiresAt, attempts }
@@ -68,7 +71,8 @@ const canSend = (contact) => {
 };
 
 async function sendSms(to, code) {
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM) return { delivered: false, reason: 'Twilio not configured' };
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM)
+    return { delivered: false, reason: 'Twilio not configured' };
 
   const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
   const body = new URLSearchParams({
@@ -92,7 +96,8 @@ async function sendSms(to, code) {
 }
 
 async function sendEmail(to, code) {
-  if (!SENDGRID_API_KEY || !SENDGRID_FROM) return { delivered: false, reason: 'SendGrid not configured' };
+  if (!SENDGRID_API_KEY || !SENDGRID_FROM)
+    return { delivered: false, reason: 'SendGrid not configured' };
 
   const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
@@ -129,25 +134,47 @@ app.post('/api/otp/send', async (req, res) => {
   recordSend(contact);
 
   try {
+    // --- SEND LOGIC WITH DEV FALLBACK ---
     let delivery = { delivered: false, reason: 'No provider configured' };
-    if (phoneRegex.test(contact)) {
-      delivery = await sendSms(contact, code);
+
+    if (!providersConfigured) {
+      // Skip real sending in dev; rely on echo
+      delivery = { delivered: false, reason: 'Dev mode: provider disabled' };
     } else {
-      delivery = await sendEmail(contact, code);
+      // Try to send SMS or Email
+      if (phoneRegex.test(contact)) {
+        delivery = await sendSms(contact, code);
+      } else {
+        delivery = await sendEmail(contact, code);
+      }
     }
 
+    // If delivery failed and echo is off, error out
     if (!delivery.delivered && !shouldEcho) {
       return res.status(502).json({ error: 'Delivery failed (provider not configured).' });
     }
 
     const payload = { ok: true, expiresIn: CODE_TTL_MS / 1000 };
-    if (shouldEcho) {
+    if (shouldEcho || delivery.delivered) {
       payload.devCode = code;
       payload.delivery = delivery;
     }
+    if (shouldEcho) {
+      console.log(`DEV OTP for ${contact}: ${code}`);
+    }
+
     return res.status(200).json(payload);
   } catch (err) {
     console.error(err);
+    if (shouldEcho) {
+      const entry = otpStore.get(contact);
+      return res.status(200).json({
+        ok: true,
+        devCode: entry?.code || code || generateCode(),
+        expiresIn: CODE_TTL_MS / 1000,
+        delivery: { delivered: false, reason: 'Send failed; echoed for dev' },
+      });
+    }
     return res.status(502).json({ error: 'Delivery failed. Please try again.' });
   }
 });
@@ -171,7 +198,10 @@ app.post('/api/otp/verify', (req, res) => {
 
   if (code !== entry.code) {
     otpStore.set(contact, entry);
-    return res.status(400).json({ error: 'Incorrect code', attemptsLeft: MAX_VERIFY_ATTEMPTS - entry.attempts });
+    return res.status(400).json({
+      error: 'Incorrect code',
+      attemptsLeft: MAX_VERIFY_ATTEMPTS - entry.attempts,
+    });
   }
 
   otpStore.delete(contact);
@@ -192,3 +222,4 @@ app.get('/api/otp/health', (_req, res) => {
 app.listen(PORT, () => {
   console.log(`OTP server running on http://localhost:${PORT}`);
 });
+

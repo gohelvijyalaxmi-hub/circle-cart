@@ -12,7 +12,8 @@ export default defineConfig(({ mode }) => ({
     },
     proxy: {
       "/api": {
-        target: process.env.API_PROXY_TARGET || "http://localhost:3001",
+        // Use explicit IPv4 loopback to avoid IPv6 :: connection refusals on some setups
+        target: process.env.API_PROXY_TARGET || "http://127.0.0.1:3001",
         changeOrigin: true,
       },
     },
